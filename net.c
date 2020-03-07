@@ -73,3 +73,22 @@ int countClients(net *n) {
     }
     return count;
 }
+
+int validClients(net *n) {
+    client *p = (client*) malloc(sizeof(client));
+    p->next = n->clientPool;
+    int count = 0;
+    while (p->next) {
+        int bytes = read(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE);
+        if (bytes == -1) {
+            printf("Client closed (%d)", p->fd);
+            p->next = p->next->next;
+            if (p->next == n->clientPool) {
+                n->clientPool = p->next;
+            }
+            count ++;
+        }
+        p = p->next;
+    }
+    return count;
+}

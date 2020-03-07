@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
         .tv_nsec = 100
     };
     while (poll(&server) > -1) {
+        validClients(&server);
         while (acceptClient(&server) == 1) {
         }
         nanosleep(&ts, &rem);

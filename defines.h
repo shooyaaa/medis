@@ -33,4 +33,5 @@ int addReadSignal(client c);
 int addWriteSignal(client c);
 int acceptClient(net *n);
 int countClients(net *n);
+int validClients(net *);
 #endif
