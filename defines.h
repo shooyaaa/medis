@@ -32,6 +32,6 @@ int poll(net *n);
 int addReadSignal(client c);
 int addWriteSignal(client c);
 int acceptClient(net *n);
-int countClients(net *n);
+void countClients(void *p);
 int validClients(net *);
 #endif

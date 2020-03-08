@@ -50,6 +50,7 @@ int acceptClient(net *n) {
         c->fd = clientFd;
         c->readBuf = (char*)malloc(sizeof(MAX_BUFFER_SIZE));
         c->writeBuf = (char*)malloc(sizeof(MAX_BUFFER_SIZE));
+        c->next = NULL;
         if (!n->clientPool) {
             n->clientPool = c;
         } else {
@@ -64,31 +65,40 @@ int acceptClient(net *n) {
     return 0;
 }
 
-int countClients(net *n) {
+void countClients(void *p) {
+    net *n = (net *)p;
     int count = 0;
-    client *p = n->clientPool;
-    while (p) {
-        p = p->next;
+    client *q = n->clientPool;
+    printf("Online users (%d):", count);
+    while (q) {
+        printf("%d", q->fd);
+        q = q->next;
+        if (q) {
+            printf("->");
+        }
         count ++;
     }
-    return count;
+    printf("\n");
 }
 
 int validClients(net *n) {
+    return 1;
     client *p = (client*) malloc(sizeof(client));
     p->next = n->clientPool;
     int count = 0;
-    while (p->next) {
+    while (p->next != NULL) {
         int bytes = read(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE);
         if (bytes == -1) {
-            printf("Client closed (%d)", p->fd);
-            p->next = p->next->next;
+            printf("Client closed (%d) (%s)\n", p->next->fd, strerror(errno));
+            close(p->next->fd);
             if (p->next == n->clientPool) {
-                n->clientPool = p->next;
+                n->clientPool = p->next->next;
             }
+            p->next = p->next->next;
             count ++;
+        } else {
+            p = p->next;
         }
-        p = p->next;
     }
     return count;
 }
