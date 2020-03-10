@@ -69,7 +69,6 @@ void countClients(void *p) {
     net *n = (net *)p;
     int count = 0;
     client *q = n->clientPool;
-    printf("Online users (%d):", count);
     while (q) {
         printf("%d", q->fd);
         q = q->next;
@@ -78,17 +77,16 @@ void countClients(void *p) {
         }
         count ++;
     }
-    printf("\n");
+    printf(":Online users (%d)\n", count);
 }
 
 int validClients(net *n) {
-    return 1;
     client *p = (client*) malloc(sizeof(client));
     p->next = n->clientPool;
     int count = 0;
     while (p->next != NULL) {
-        int bytes = read(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE);
-        if (bytes == -1) {
+        int bytes = recv(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE, 0);
+        if (bytes == 0) {
             printf("Client closed (%d) (%s)\n", p->next->fd, strerror(errno));
             close(p->next->fd);
             if (p->next == n->clientPool) {

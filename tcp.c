@@ -8,7 +8,7 @@ int poll(net *n) {
         int bytes = read(p->fd, p->readBuf, MAX_BUFFER_SIZE);
         if (bytes > 0) {
             printf("Read client (%d) : (%s)\n", p->fd, p->readBuf);
-            write(p->fd, "+OK\r\n", 5);
+            write(p->fd, "+PONG\r\n", 7);
         }
         p = p->next;
     }
