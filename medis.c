@@ -6,7 +6,7 @@
 
 
 schedList *scheduledWork(net *n) {
-    sched *onlineCheck = initSched(500, -1, (void *)n, countClients);
+    sched *onlineCheck = initSched(5000, -1, (void *)n, countClients);
     schedList *sl = (schedList *) calloc(1, sizeof(schedList));
     sl->s = onlineCheck;
     return sl;

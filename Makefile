@@ -1,5 +1,5 @@
 cc=gcc -g
-cflags=-I
+cflags=
 deps=*.h
 obj=medis.o tcp.c net.c schedule.c
 
