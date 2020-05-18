@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "defines.h"
 #include "schedule.h"
+#include "resp.h"
 
 
 schedList *scheduledWork(net *n) {
@@ -12,16 +13,26 @@ schedList *scheduledWork(net *n) {
     return sl;
 }
 
+void initCommandTable(net *n) {
+    command ping = {
+        .name = "PING",
+        .handler = pingCommand
+    };
+    n->table[0] = ping;
+}
+
 int main(int argc, char **argv) {
     printf("Medis 1.0 start\n");
     int serverFd = createSocket(8888);
     net *server = (net *) calloc(1, sizeof(net));
+    initCommandTable(server);
     server->fd = serverFd;
     struct timespec rem, ts = {
         .tv_nsec = 100
     };
     schedList *sl = scheduledWork(server);
     while (poll(server) > -1) {
+        handleSignal(server);
         validClients(server);
         while (acceptClient(server) == 1) {
         }

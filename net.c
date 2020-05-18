@@ -16,7 +16,7 @@ int createSocket(int port) {
     if (fd == 0)
     {
         printf("Failed to create socket (%s)", strerror(errno));
-        return -1;
+        exit(-1);
     }
 
     int ret = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
@@ -45,11 +45,12 @@ int acceptClient(net *n) {
     int clientFd = accept(n->fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
     if (clientFd > 0) {
         int ret = fcntl(clientFd, F_SETFL, fcntl(clientFd, F_GETFL, 0) | O_NONBLOCK);
-        printf("New client arrived (%d)\n", clientFd);
-        client *c = (client*)malloc(sizeof(client));
+        client *c = (client*)calloc(1, sizeof(client));
         c->fd = clientFd;
-        c->readBuf = (char*)malloc(sizeof(MAX_BUFFER_SIZE));
-        c->writeBuf = (char*)malloc(sizeof(MAX_BUFFER_SIZE));
+        c->readBuf = (char*)calloc(1, sizeof(MAX_BUFFER_SIZE));
+        c->writeBuf = (char*)calloc(1, sizeof(MAX_BUFFER_SIZE));
+        c->port = ntohs(address.sin_port);
+        printf("New client arrived (%d)\n", c->port);
         c->next = NULL;
         if (!n->clientPool) {
             n->clientPool = c;
@@ -70,7 +71,7 @@ void countClients(void *p) {
     int count = 0;
     client *q = n->clientPool;
     while (q) {
-        printf("%d", q->fd);
+        printf("%d", q->port);
         q = q->next;
         if (q) {
             printf("->");
@@ -87,7 +88,7 @@ int validClients(net *n) {
     while (p->next != NULL) {
         int bytes = recv(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE, 0);
         if (bytes == 0) {
-            printf("Client closed (%d) (%s)\n", p->next->fd, strerror(errno));
+            //printf("Client closed (%d) (%s)\n", p->next->fd, strerror(errno));
             close(p->next->fd);
             if (p->next == n->clientPool) {
                 n->clientPool = p->next->next;
@@ -99,4 +100,75 @@ int validClients(net *n) {
         }
     }
     return count;
+}
+
+void addToLinkList(signalList **head, signalList *item) {
+    if (*head) {
+        (*head)->next = item;
+    } else {
+        *head = item;
+    }
+}
+
+void removeFromLinkList(signalList **head, signalList *item) {
+    signalList *p = *head;
+    while (p && p->next) {
+        if (p->next == item) {
+            p->next = p->next->next;
+        } else {
+            p = p->next;
+        }
+    }
+    if (*head == item) {
+        *head = (*head)->next;
+    }
+}
+
+int handleSignal(net *n) {
+    signalList *p = n->readSignal;
+    int count = 0;
+    while (p) {
+        char *name = codec(p->c);
+        for (int i = 0; i < 10; i ++) {
+            if (strncmp(n->table[i].name, name, strlen(n->table[i].name)) == 0) {
+                n->table[i].handler(p->c);
+                count ++;
+                removeFromLinkList(&n->readSignal, p);
+                break;
+            }
+        }
+        p = p->next;
+    }
+    return count;
+}
+
+char *codec(client *c) {
+    char *name = (char *)calloc(1, 20);
+    int status = 0;
+    int p = 0;
+    for (int i = 0; i < c->rsize; i++) {
+        if (c->readBuf[i] == ' ') {
+            if (status == 0) {
+                status = 1;
+            } else if (status == 2) {
+                c->readBuf[p ++] = '\0';
+                status = 1;
+            }
+        } else {
+            if (status == 0) {
+                name[i] = c->readBuf[i];
+            } else if (status == 1){
+                status = 2;
+                c->readBuf[p ++] = c->readBuf[i];
+            } else if (status == 2) {
+                c->readBuf[p ++] = c->readBuf[i];
+            }
+        }
+    }
+    return name;
+}
+
+void pingCommand(client *c) {
+    int ret = send(c->fd, "+Pong\r\n", 7, 0);
+    printf("ping command (%d)\n", ret);
 }

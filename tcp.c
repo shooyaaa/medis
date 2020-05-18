@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+<<<<<<< HEAD
 #include <string.h>
 #include <errno.h>
 #include <sys/socket.h>
+=======
+>>>>>>> add redis protocol codec
 #include <unistd.h>
 #include "defines.h"
 
@@ -24,6 +27,11 @@ int poll(net *n) {
             write(p->next->fd, "+PONG\r\n", 7);
             closeSocket(p->next->fd);
             p->next = p->next->next;
+            printf("Read client (%d) : (%s)\n", p->fd, p->readBuf);
+            p->rsize = bytes;
+            signalList *sl = calloc(1, sizeof(signalList));
+            sl->c = p;
+            addToLinkList(&n->readSignal, sl);
         }
     }
     return count;
