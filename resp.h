@@ -7,8 +7,9 @@
 
 typedef struct _resp {
     char type;
+    int size;
     union {
-       int i;
+       long long i;
        char *s;
        struct _resp **arr;
     };
@@ -20,7 +21,8 @@ typedef struct _resp {
 
 #define IS_ARRAY(v) (v)->type == RESP_ARRAY
 
-resp *parse(char *buffer, int size);
+int parse(char *buffer, int start, int size, resp *rsp);
 int serialize(resp *rp, char *ret);
+int findCr(char *buffer, int start, int size);
 
 #endif

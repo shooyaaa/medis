@@ -16,8 +16,10 @@ int createSocket(int port) {
     if (fd == 0)
     {
         printf("Failed to create socket (%s)", strerror(errno));
-        exit(-1);
+        return -1;
     }
+    int trueOne = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &trueOne, sizeof(int));
 
     int ret = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
     if (ret == -1) {
@@ -103,25 +105,28 @@ int validClients(net *n) {
 }
 
 void addToLinkList(signalList **head, signalList *item) {
-    if (*head) {
-        (*head)->next = item;
-    } else {
-        *head = item;
+    signalList prev;
+    prev.next = *head;
+    signalList *p = &prev;
+    while (p->next) {
+        p = p->next;
     }
+    p->next = item;
+    *head = prev.next;
 }
 
 void removeFromLinkList(signalList **head, signalList *item) {
-    signalList *p = *head;
-    while (p && p->next) {
+    signalList prev;
+    prev.next = *head;
+    signalList *p = &prev;
+    while (p->next) {
         if (p->next == item) {
             p->next = p->next->next;
         } else {
             p = p->next;
         }
     }
-    if (*head == item) {
-        *head = (*head)->next;
-    }
+    *head = prev.next;
 }
 
 int handleSignal(net *n) {

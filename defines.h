@@ -8,6 +8,10 @@
 #define debug(m)
 #endif
 #define MAX_BUFFER_SIZE 1024
+
+#define FATAL(msg) do {printf(msg);exit(2);} while (0)
+#include <stdio.h>
+
 struct _client {
     int fd;
     char *readBuf;
@@ -29,6 +33,7 @@ typedef struct _command {
     char **parmas;
     void (*handler)(client *c);
 } command;
+
 
 void pingCommand(client *c);
 
