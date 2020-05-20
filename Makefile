@@ -1,7 +1,7 @@
 cc=gcc -g
 cflags=
 deps=*.h
-obj=medis.o tcp.c net.c schedule.c
+obj=medis.o tcp.c net.c schedule.c resp.c dm_string.c
 
 %.o: %.c $(deps)
 	$(cc) -c -o $@ $< $(cflags)

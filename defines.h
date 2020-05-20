@@ -11,6 +11,8 @@
 
 #define FATAL(msg) do {printf(msg);exit(2);} while (0)
 #include <stdio.h>
+#include "dm_string.h"
+#include "resp.h"
 
 struct _client {
     int fd;
@@ -49,6 +51,7 @@ typedef struct _net net;
 
 
 
+
 int readClient(net n);
 int writeClient(net n);
 int createSocket(int port);
@@ -60,5 +63,5 @@ void addToLinkList(signalList **head, signalList *item);
 void removeFromLinkList(signalList **head, signalList *item);
 
 int handleSignal(net *n);
-char *codec(client *c);
+resp *codec(client *c);
 #endif

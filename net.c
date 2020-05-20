@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include "defines.h"
+#include "resp.h"
 
 int createSocket(int port) {
     int fd;
@@ -133,9 +134,9 @@ int handleSignal(net *n) {
     signalList *p = n->readSignal;
     int count = 0;
     while (p) {
-        char *name = codec(p->c);
+        resp *rp = codec(p->c);
         for (int i = 0; i < 10; i ++) {
-            if (strncmp(n->table[i].name, name, strlen(n->table[i].name)) == 0) {
+            if (strncmp(n->table[i].name, rp->s, strlen(n->table[i].name)) == 0) {
                 n->table[i].handler(p->c);
                 count ++;
                 removeFromLinkList(&n->readSignal, p);
@@ -147,30 +148,10 @@ int handleSignal(net *n) {
     return count;
 }
 
-char *codec(client *c) {
-    char *name = (char *)calloc(1, 20);
-    int status = 0;
-    int p = 0;
-    for (int i = 0; i < c->rsize; i++) {
-        if (c->readBuf[i] == ' ') {
-            if (status == 0) {
-                status = 1;
-            } else if (status == 2) {
-                c->readBuf[p ++] = '\0';
-                status = 1;
-            }
-        } else {
-            if (status == 0) {
-                name[i] = c->readBuf[i];
-            } else if (status == 1){
-                status = 2;
-                c->readBuf[p ++] = c->readBuf[i];
-            } else if (status == 2) {
-                c->readBuf[p ++] = c->readBuf[i];
-            }
-        }
-    }
-    return name;
+resp *codec(client *c) {
+    resp *rp = malloc(sizeof(resp));
+    parse(c->readBuf, 0, c->rsize, rp);
+    return rp;
 }
 
 void pingCommand(client *c) {
