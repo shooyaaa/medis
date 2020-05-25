@@ -41,22 +41,23 @@ int parse(char *buffer, int start, int size, resp *rsp) {
         case '$' :
             len = atoi(value);
             value = (char *)malloc(len);
-            strncpy(value, buffer + crlf + 2, len);
+            strncpy(value, buffer + crlf + 1, len);
             rsp->s = value;
             rsp->type = RESP_BULK;
             rsp->size = len;
-            crlf += 2 + len;
+            crlf += 1 + len;
             break;
         case '*':
             len = atoi(value);
             rsp->type = RESP_ARRAY;
             rsp->size = len;
             rsp->arr = (resp **)calloc(len, sizeof(resp*));
-            start = crlf + 2;
+            crlf ++;
             for (int i = 0; i < len; i ++) {
                 rsp->arr[i] = calloc(1, sizeof(resp));
-                start = parse(buffer, start, size, rsp->arr[i]);
+                crlf = parse(buffer, crlf, size, rsp->arr[i]);
             }
+            crlf -= 2;
             break;
         default:
             i = start;
@@ -94,35 +95,40 @@ int serialize(resp *rp, dmString *dm) {
             sprintf(temp, "%lld", rp->i);
             dmAppend(dm, ":", 1);
             dmAppend(dm, temp, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
+            dmAppend(dm, "\r\n", 2);
             break;
         case RESP_STRING:
             dmAppend(dm, "+", 1);
-            dmAppend(dm, rp->s, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
+            dmAppend(dm, rp->s, rp->size);
+            dmAppend(dm, "\r\n", 2);
             break;
         case RESP_ERROR:
             dmAppend(dm, "-", 1);
-            dmAppend(dm, rp->s, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
+            dmAppend(dm, rp->s, rp->size);
+            dmAppend(dm, "\r\n", 2);
             break;
         case RESP_BULK:
             dmAppend(dm, "$", 1);
             sprintf(temp, "%d", rp->size);
             dmAppend(dm, temp, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
-            dmAppend(dm, rp->s, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
+            dmAppend(dm, "\r\n", 2);
+            dmAppend(dm, rp->s, rp->size);
+            dmAppend(dm, "\r\n", 2);
             break;
         case RESP_ARRAY:
             dmAppend(dm, "*", 1);
             sprintf(temp, "%d", rp->size);
             dmAppend(dm, temp, strlen(temp));
-            dmAppend(dm, "\r\n", strlen(temp));
-            serialize(*rp->arr, dm);
+            dmAppend(dm, "\r\n", 2);
+            for (int i = 0; i < rp->size; i++) {
+                serialize(rp->arr[i], dm);
+            }
             break;
         default:
             return -1;
+    }
+    if (rp->next) {
+        serialize(rp->next, dm);
     }
     return 0;
 }

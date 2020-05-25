@@ -42,6 +42,12 @@ int createSocket(int port) {
     return fd;
 }
 
+void freeClient(client *c, net *n) {
+    signalList *sl = calloc(1, sizeof(signalList));
+    sl->c = c;
+    addToLinkList(&n->closedClient, sl);
+}
+
 int acceptClient(net *n) {
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -50,6 +56,7 @@ int acceptClient(net *n) {
         int ret = fcntl(clientFd, F_SETFL, fcntl(clientFd, F_GETFL, 0) | O_NONBLOCK);
         client *c = (client*)calloc(1, sizeof(client));
         c->fd = clientFd;
+        c->state = STATE_OK;
         c->readBuf = (char*)calloc(1, sizeof(MAX_BUFFER_SIZE));
         c->writeBuf = (char*)calloc(1, sizeof(MAX_BUFFER_SIZE));
         c->port = ntohs(address.sin_port);
@@ -85,22 +92,19 @@ void countClients(void *p) {
 }
 
 int validClients(net *n) {
-    client *p = (client*) malloc(sizeof(client));
-    p->next = n->clientPool;
+    client *p, *pre = (client*) malloc(sizeof(client));
+    pre->next = n->clientPool;
+    p = pre;
     int count = 0;
-    while (p->next != NULL) {
-        int bytes = recv(p->next->fd, p->next->readBuf, MAX_BUFFER_SIZE, 0);
-        if (bytes == 0) {
+    while (p && p->next != NULL) {
+        int ret = 1;
+        if (ret == 0) {
             //printf("Client closed (%d) (%s)\n", p->next->fd, strerror(errno));
             close(p->next->fd);
-            if (p->next == n->clientPool) {
-                n->clientPool = p->next->next;
-            }
             p->next = p->next->next;
             count ++;
-        } else {
-            p = p->next;
         }
+        p = p->next;
     }
     return count;
 }
@@ -135,14 +139,32 @@ int handleSignal(net *n) {
     int count = 0;
     while (p) {
         resp *rp = codec(p->c);
-        for (int i = 0; i < 10; i ++) {
-            if (strncmp(n->table[i].name, rp->s, strlen(n->table[i].name)) == 0) {
-                n->table[i].handler(p->c);
-                count ++;
-                removeFromLinkList(&n->readSignal, p);
-                break;
+        resp *ret = calloc(1, sizeof(resp));
+        ret->type = RESP_ARRAY;
+        ret->size = 0;
+        ret->arr = (resp **) calloc(10, sizeof(resp*));
+        while (rp) {
+            char *name = rp->s;
+            if (IS_ARRAY(rp)) {
+                name = rp->arr[0]->s;
             }
+            for (int i = 0; i < 10; i ++) {
+                int len = strlen(n->table[i].name);
+                if (len > 0 && strncmp(n->table[i].name, name, len) == 0) {
+                    ret->arr[ret->size ++] = n->table[i].handler(rp);
+                    count ++;
+                    break;
+                }
+            }
+            rp = rp->next;
         }
+        if (ret->size < 2) {
+            ret = ret->arr[0];
+        }
+        dmString *dm = calloc(1, sizeof(dmString));
+        serialize(ret, dm);
+        send(p->c->fd, dm->str, dm->size, 0);
+        removeFromLinkList(&n->readSignal, p);
         p = p->next;
     }
     return count;
@@ -150,11 +172,37 @@ int handleSignal(net *n) {
 
 resp *codec(client *c) {
     resp *rp = malloc(sizeof(resp));
-    parse(c->readBuf, 0, c->rsize, rp);
+    resp *p = rp;
+    int start = 0;
+    while ((start = parse(c->readBuf, start, c->rsize, p)) < c->rsize) {
+        p->next = calloc(1, sizeof(resp));
+        p = p->next;
+    }
+    dmString *dm = calloc(1, sizeof(dmString));
+    serialize(rp, dm);
+    printf("dm %s\n", dm->str);
     return rp;
 }
 
-void pingCommand(client *c) {
-    int ret = send(c->fd, "+Pong\r\n", 7, 0);
-    printf("ping command (%d)\n", ret);
+resp *pingCommand(resp *rp) {
+    resp *ret = calloc(1, sizeof(resp));
+    ret->type = RESP_STRING;
+    ret->s = "+PONG";
+    ret->size = 5;
+    return ret;
+}
+
+resp *configCommand(resp *rp) {
+    resp *ret = calloc(1, sizeof(resp));
+    printf("Config command\n");
+    char *response;
+    if (strncmp(rp->arr[2]->s, "save", 4) == 0) {
+        response = "1";
+    } else if (strncmp(rp->arr[2]->s, "appendonly", 10) == 0) {
+        response = "2";
+    }
+    ret->s = response;
+    ret->size = strlen(response);
+    ret->type = RESP_STRING;
+    return ret;
 }

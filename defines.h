@@ -14,6 +14,11 @@
 #include "dm_string.h"
 #include "resp.h"
 
+typedef enum connection_state {
+    STATE_OK,
+    STATE_ERROR
+} connState;
+
 struct _client {
     int fd;
     char *readBuf;
@@ -21,6 +26,7 @@ struct _client {
     char *writeBuf;
     int wsize;
     int port;
+    connState state;
     struct _client *next;
 };
 typedef struct _client client;
@@ -33,11 +39,12 @@ typedef struct _signalList {
 typedef struct _command {
     char name[20];
     char **parmas;
-    void (*handler)(client *c);
+    resp *(*handler)(resp *rp);
 } command;
 
 
-void pingCommand(client *c);
+resp *pingCommand(resp *rp);
+resp *configCommand(resp *rp);
 
 struct _net {
     int     fd;
@@ -45,6 +52,7 @@ struct _net {
     client*    clientPool;
     signalList *readSignal;
     signalList *writeSignal;
+    signalList *closedClient;
 };
 
 typedef struct _net net;
@@ -57,6 +65,7 @@ int writeClient(net n);
 int createSocket(int port);
 int poll(net *n);
 int acceptClient(net *n);
+void freeClient(client *c, net *n);
 void countClients(void *p);
 int validClients(net *);
 void addToLinkList(signalList **head, signalList *item);

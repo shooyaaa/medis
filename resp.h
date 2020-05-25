@@ -17,6 +17,7 @@ typedef struct _resp {
        char *s;
        struct _resp **arr;
     };
+    struct _resp *next;
 } resp;
 
 #define IS_INT(v) (v)->type == RESP_INT
@@ -26,6 +27,8 @@ typedef struct _resp {
 #define IS_ERROR(v) (v)->type == RESP_ERROR
 
 #define IS_ARRAY(v) (v)->type == RESP_ARRAY
+
+#define IS_BULK(v) (v)->type == RESP_BULK
 
 int parse(char *buffer, int start, int size, resp *rsp);
 int serialize(resp *rp, dmString *dm);

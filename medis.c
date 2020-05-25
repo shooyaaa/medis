@@ -14,19 +14,44 @@ void handler(int sig) {
     exit(0);
 }
 
+void closeSockets(void *p) {
+    return;
+    net *n = (net *)p;
+    signalList *q = n->closedClient;
+    int count = 0;
+    while (q) {
+        close(q->c->fd);
+        removeFromLinkList(&n->readSignal, q);
+        q = q->next;
+        count ++;
+    }
+    printf("Close sockets %d\n", count);
+}
+
 schedList *scheduledWork(net *n) {
     sched *onlineCheck = initSched(5000, -1, (void *)n, countClients);
     schedList *sl = (schedList *) calloc(1, sizeof(schedList));
     sl->s = onlineCheck;
+
+    sched *cs = initSched(5000, -1, (void *)n, closeSockets);
+    schedList *next = (schedList *) calloc(1, sizeof(schedList));
+    next->s = cs;
+    sl->next = next;
     return sl;
 }
+
 
 void initCommandTable(net *n) {
     command ping = {
         .name = "PING",
         .handler = pingCommand
     };
+    command config = {
+        .name = "CONFIG",
+        .handler = configCommand
+    };
     n->table[0] = ping;
+    n->table[1] = config;
 }
 
 int main(int argc, char **argv) {
@@ -45,10 +70,10 @@ int main(int argc, char **argv) {
     schedList *sl = scheduledWork(server);
     while (poll(server) > -1) {
         handleSignal(server);
-        validClients(server);
         while (acceptClient(server) == 1) {
         }
         loopSchedList(sl, clock());
+        //validClients(server);
         nanosleep(&ts, &rem);
     }
     printf("Stoped!");
