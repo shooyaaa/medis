@@ -23,7 +23,7 @@ int poll(net *n) {
             sl->c = p->next;
             addToLinkList(&n->readSignal, sl);
         } else if (bytes == 0) {
-            printf("Client offline (%d) : (%s)\n", p->next->fd, p->next->readBuf);
+            //printf("Client offline (%d) : (%s)\n", p->next->fd, p->next->readBuf);
             p->next->state = STATE_ERROR;
             freeClient(p->next, n);
             p->next = p->next->next;

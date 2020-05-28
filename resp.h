@@ -6,6 +6,7 @@
 #define RESP_ERROR  2
 #define RESP_ARRAY  3
 #define RESP_BULK   4
+#define RESP_SIMPLE 5
 
 #include "dm_string.h"
 

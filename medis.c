@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         }
         loopSchedList(sl, clock());
         //validClients(server);
-        nanosleep(&ts, &rem);
+        //nanosleep(&ts, &rem);
     }
     printf("Stoped!");
 }

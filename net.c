@@ -35,7 +35,7 @@ int createSocket(int port) {
         printf("Failed to bind socket (%s)", strerror(errno));
         return -3;
     }
-    if (listen(fd, 3) < 0) {
+    if (listen(fd, 10240) < 0) {
         printf("Failed to listen socket (%s)", strerror(errno));
         return -4;
     }
@@ -61,6 +61,7 @@ int acceptClient(net *n) {
         c->writeBuf = (char*)calloc(1, sizeof(MAX_BUFFER_SIZE));
         c->port = ntohs(address.sin_port);
         printf("New client arrived (%d)\n", c->port);
+        countClients(n);
         c->next = NULL;
         if (!n->clientPool) {
             n->clientPool = c;
@@ -139,10 +140,7 @@ int handleSignal(net *n) {
     int count = 0;
     while (p) {
         resp *rp = codec(p->c);
-        resp *ret = calloc(1, sizeof(resp));
-        ret->type = RESP_ARRAY;
-        ret->size = 0;
-        ret->arr = (resp **) calloc(10, sizeof(resp*));
+        dmString *dm = calloc(1, sizeof(dmString));
         while (rp) {
             char *name = rp->s;
             if (IS_ARRAY(rp)) {
@@ -151,18 +149,14 @@ int handleSignal(net *n) {
             for (int i = 0; i < 10; i ++) {
                 int len = strlen(n->table[i].name);
                 if (len > 0 && strncmp(n->table[i].name, name, len) == 0) {
-                    ret->arr[ret->size ++] = n->table[i].handler(rp);
+                    resp *ret = n->table[i].handler(rp);
+                    serialize(ret, dm);
                     count ++;
                     break;
                 }
             }
             rp = rp->next;
         }
-        if (ret->size < 2) {
-            ret = ret->arr[0];
-        }
-        dmString *dm = calloc(1, sizeof(dmString));
-        serialize(ret, dm);
         send(p->c->fd, dm->str, dm->size, 0);
         removeFromLinkList(&n->readSignal, p);
         p = p->next;
@@ -171,7 +165,7 @@ int handleSignal(net *n) {
 }
 
 resp *codec(client *c) {
-    resp *rp = malloc(sizeof(resp));
+    resp *rp = calloc(1, sizeof(resp));
     resp *p = rp;
     int start = 0;
     while ((start = parse(c->readBuf, start, c->rsize, p)) < c->rsize) {
@@ -180,14 +174,13 @@ resp *codec(client *c) {
     }
     dmString *dm = calloc(1, sizeof(dmString));
     serialize(rp, dm);
-    printf("dm %s\n", dm->str);
     return rp;
 }
 
 resp *pingCommand(resp *rp) {
     resp *ret = calloc(1, sizeof(resp));
     ret->type = RESP_STRING;
-    ret->s = "+PONG";
+    ret->s = "PONG";
     ret->size = 5;
     return ret;
 }
@@ -196,13 +189,18 @@ resp *configCommand(resp *rp) {
     resp *ret = calloc(1, sizeof(resp));
     printf("Config command\n");
     char *response;
+    ret->type = RESP_ARRAY;
+    ret->arr = calloc(2, sizeof(resp*));
+    ret->arr[0] = rp->arr[2];
+    ret->arr[1] = calloc(1, sizeof(resp));
     if (strncmp(rp->arr[2]->s, "save", 4) == 0) {
-        response = "1";
+        response = "900 1 300 10 60 10000";
     } else if (strncmp(rp->arr[2]->s, "appendonly", 10) == 0) {
-        response = "2";
+        response = "no";
     }
-    ret->s = response;
-    ret->size = strlen(response);
-    ret->type = RESP_STRING;
+    ret->size = 2;
+    ret->arr[1]->type = RESP_BULK;
+    ret->arr[1]->s = response;
+    ret->arr[1]->size = strlen(response);
     return ret;
 }
