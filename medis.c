@@ -15,21 +15,22 @@ void handler(int sig) {
 }
 
 void closeSockets(void *p) {
-    return;
     net *n = (net *)p;
     signalList *q = n->closedClient;
     int count = 0;
     while (q) {
         close(q->c->fd);
-        removeFromLinkList(&n->readSignal, q);
         q = q->next;
         count ++;
     }
-    printf("Close sockets %d\n", count);
+    n->closedClient = NULL;
+    if (count) {
+        printf("Close sockets %d\n", count);
+    }
 }
 
 schedList *scheduledWork(net *n) {
-    sched *onlineCheck = initSched(5000, -1, (void *)n, countClients);
+    sched *onlineCheck = initSched(50000, -1, (void *)n, countClients);
     schedList *sl = (schedList *) calloc(1, sizeof(schedList));
     sl->s = onlineCheck;
 
@@ -50,8 +51,24 @@ void initCommandTable(net *n) {
         .name = "CONFIG",
         .handler = configCommand
     };
+    command set = {
+        .name = "SET",
+        .handler = setCommand
+    };
+    command get = {
+        .name = "GET",
+        .handler = getCommand
+    };
+    command del = {
+        .name = "DEL",
+        .handler = delCommand
+    };
+
     n->table[0] = ping;
     n->table[1] = config;
+    n->table[2] = set;
+    n->table[3] = get;
+    n->table[4] = del;
 }
 
 int main(int argc, char **argv) {
@@ -64,6 +81,7 @@ int main(int argc, char **argv) {
     }
     initCommandTable(server);
     server->fd = serverFd;
+    server->globalHash = newHash(1024);
     struct timespec rem, ts = {
         .tv_nsec = 100
     };

@@ -79,7 +79,7 @@ int parse(char *buffer, int start, int size, resp *rsp) {
                     strncpy(value, buffer + start, i - start);
                     (*temp)->s = value;
                     (*temp)->size = i - start;
-                    start = i;
+                    start = i + 1;
                     temp ++;
                 }
             }
@@ -90,6 +90,10 @@ int parse(char *buffer, int start, int size, resp *rsp) {
 
 int serialize(resp *rp, dmString *dm) {
     char *temp = calloc(1, 50);
+    if (!rp) {
+        dmAppend(dm, "$-1\r\n", 5);
+        return 1;
+    }
     switch (rp->type) {
         case RESP_INT:
             sprintf(temp, "%lld", rp->i);

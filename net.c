@@ -8,6 +8,9 @@
 #include <fcntl.h>
 #include "defines.h"
 #include "resp.h"
+#include "hash.h"
+
+extern net *server;
 
 int createSocket(int port) {
     int fd;
@@ -82,12 +85,8 @@ void countClients(void *p) {
     int count = 0;
     client *q = n->clientPool;
     while (q) {
-        printf("%d", q->port);
-        q = q->next;
-        if (q) {
-            printf("->");
-        }
         count ++;
+        q = q->next;
     }
     printf(":Online users (%d)\n", count);
 }
@@ -202,5 +201,30 @@ resp *configCommand(resp *rp) {
     ret->arr[1]->type = RESP_BULK;
     ret->arr[1]->s = response;
     ret->arr[1]->size = strlen(response);
+    return ret;
+}
+
+resp *getCommand(resp *rp) {
+    printf("Get command\n");
+    return hashGet(server->globalHash, rp->arr[1]->s, rp->arr[1]->size);
+}
+
+resp *delCommand(resp *rp) {
+    printf("Get command\n");
+    resp *ret = calloc(1, sizeof(resp));
+    ret->i = hashDel(server->globalHash, rp->arr[1]->s, rp->arr[1]->size);
+    ret->type = RESP_INT;
+    return ret;
+}
+
+resp *setCommand(resp *rp) {
+    resp *ret = calloc(1, sizeof(resp));
+    printf("Set command\n");
+    int expires = 0;
+    if (rp->size > 3) {
+        expires = rp->arr[3]->i;
+    }
+    ret->i = hashSet(server->globalHash, rp->arr[1]->s, rp->arr[1]->size, rp->arr[2], expires);
+    ret->type = RESP_INT;
     return ret;
 }

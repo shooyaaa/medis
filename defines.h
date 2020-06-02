@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "dm_string.h"
 #include "resp.h"
+#include "hash.h"
 
 typedef enum connection_state {
     STATE_OK,
@@ -42,10 +43,6 @@ typedef struct _command {
     resp *(*handler)(resp *rp);
 } command;
 
-
-resp *pingCommand(resp *rp);
-resp *configCommand(resp *rp);
-
 struct _net {
     int     fd;
     command table[10];
@@ -53,11 +50,17 @@ struct _net {
     signalList *readSignal;
     signalList *writeSignal;
     signalList *closedClient;
+    hash *globalHash;
 };
+
 
 typedef struct _net net;
 
-
+resp *pingCommand(resp *rp);
+resp *configCommand(resp *rp);
+resp *getCommand(resp *rp);
+resp *setCommand(resp *rp);
+resp *delCommand(resp *rp);
 
 
 int readClient(net n);
